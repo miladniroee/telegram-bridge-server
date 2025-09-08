@@ -46,8 +46,10 @@ python app.py
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token from @BotFather | - | ✅ |
+| `TELEGRAM_BOT_TOKENS` | Your Telegram bot token(s) from @BotFather (comma-separated for multiple tokens) | - | ✅ |
 | `APP_URL` | Your application webhook URL | - | ✅ |
+
+
 
 ## Endpoints
 

@@ -12,20 +12,26 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
+
+TELEGRAM_BOT_TOKENS = [token.strip() for token in os.getenv('TELEGRAM_BOT_TOKENS', '').split(',') if token.strip()]
 APP_URL = os.getenv('APP_URL')
-
-TELEGRAM_API_BASE = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
-
-
-if not TELEGRAM_BOT_TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
+if not TELEGRAM_BOT_TOKENS:
+   raise ValueError("No valid tokens found in TELEGRAM_BOT_TOKENS")
 if not APP_URL:
     raise ValueError("APP_URL environment variable is required")
+
+TELEGRAM_API_BASE = "https://api.telegram.org"
+if TELEGRAM_API_BASE.endswith('/'):
+   TELEGRAM_API_BASE = TELEGRAM_API_BASE.rstrip('/')
+
+
 
 @app.route('/')
 def home():
     return jsonify({"status": "Telegram Bridge Server Running", "version": "1.0"})
+
+
 
 @app.route('/webhook', methods=['POST'])
 def telegram_webhook():
@@ -61,6 +67,8 @@ def telegram_webhook():
         logging.error(f"Webhook forwarding error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/bot<bot_token>/<path:telegram_method>', methods=['GET', 'POST'])
 def telegram_api_proxy(bot_token, telegram_method):
     """
@@ -70,10 +78,10 @@ def telegram_api_proxy(bot_token, telegram_method):
 
     try:
         # Verify token matches
-        if bot_token != TELEGRAM_BOT_TOKEN:
+        if bot_token not in TELEGRAM_BOT_TOKENS:
             return jsonify({"error": "Invalid bot token"}), 401
 
-        telegram_url = f"{TELEGRAM_API_BASE}/{telegram_method}"
+        telegram_url = f"{TELEGRAM_API_BASE}/bot{bot_token}/{telegram_method}"
 
         # Forward the request method and data
         if request.method == 'POST':
@@ -99,6 +107,8 @@ def telegram_api_proxy(bot_token, telegram_method):
         logging.error(f"API proxy error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/file/bot<bot_token>/<path:file_path>')
 def download_telegram_file(bot_token, file_path):
     """
@@ -107,11 +117,11 @@ def download_telegram_file(bot_token, file_path):
     """
     try:
         # Verify token matches (optional security check)
-        if bot_token != TELEGRAM_BOT_TOKEN:
+        if bot_token not in TELEGRAM_BOT_TOKENS:
             return jsonify({"error": "Invalid bot token"}), 401
 
         # Download the file from Telegram
-        download_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+        download_url = f"{TELEGRAM_API_BASE}/file/bot{bot_token}/{file_path}"
         file_content = requests.get(download_url, timeout=30)
 
         if not file_content.ok:
@@ -132,6 +142,8 @@ def download_telegram_file(bot_token, file_path):
         logging.error(f"File download error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route('/set-webhook', methods=['POST'])
 def set_telegram_webhook():
     """
@@ -145,7 +157,7 @@ def set_telegram_webhook():
             return jsonify({"error": "webhook URL required"}), 400
 
         response = requests.post(
-            f"{TELEGRAM_API_BASE}/setWebhook",
+            f"{TELEGRAM_API_BASE}/bot{bot_token}/setWebhook",
             json={"url": webhook_url},
             timeout=30
         )
@@ -154,6 +166,8 @@ def set_telegram_webhook():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 
 # cPanel WSGI compatibility
